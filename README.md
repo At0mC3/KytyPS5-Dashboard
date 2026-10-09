@@ -1,10 +1,40 @@
-# KytyPS5 Launcher (Electron)
+# KytyPS5 Dashboard
 
-A console-style launcher for the KytyPS5 emulator that works with a controller, a keyboard or a
-mouse. It runs next to the Qt launcher (`src/launcher`) and shares its settings file, so either
-launcher can be used with the same games and configs.
+A console-style launcher for the [KytyPS5 emulator](https://github.com/At0mC3/KytyPS5-GTA-Linux)
+that works with a controller, a keyboard or a mouse. It shares its settings file with the
+emulator's Qt launcher, so either launcher can be used with the same games and configs.
 
-![Home](../../docs/screenshots/launcher-home.png)
+![Home](docs/screenshots/launcher-home.png)
+
+## Install
+
+Release builds of [KytyPS5-GTA-Linux](https://github.com/At0mC3/KytyPS5-GTA-Linux/releases)
+already include the dashboard. To add it to another build, download the archive for your system
+from [Releases](https://github.com/At0mC3/KytyPS5-Dashboard/releases) and extract it into the
+folder that holds `kyty_emulator`:
+
+| System | Archive | Start with |
+|---|---|---|
+| Linux | `KytyPS5-Dashboard-linux-x64.tar.gz` | `kyty-launcher.sh` |
+| Windows | `KytyPS5-Dashboard-windows-x64.zip` | `KytyPS5 Launcher.cmd` |
+| macOS | `KytyPS5-Dashboard-macos-x86_64.zip` | `KytyPS5 Launcher.app`, next to `KytyPS5.app` |
+
+```sh
+tar -xzf KytyPS5-Dashboard-linux-x64.tar.gz -C /path/to/kyty
+```
+
+The launcher looks for `kyty_emulator` next to itself and in the parent folders. To keep it
+somewhere else, start it with `--emulator=<path>` or set `KYTY_EMULATOR`.
+
+The macOS app has an ad-hoc signature and is not notarized, so macOS asks before opening it the
+first time (*System Settings → Privacy & Security → Open Anyway*).
+
+### Emulator version
+
+The launcher gets GPU names, microphones, `.zar` archive contents and trophies from the emulator
+(`kyty_emulator --query`). With an emulator that does not have `--query` yet, games still run,
+but the GPU setting offers only "Auto" and archives show no art or trophies. To check, run
+`kyty_emulator --query info`.
 
 ## Features
 
@@ -21,9 +51,9 @@ launcher can be used with the same games and configs.
   compatibility, debugging and logs, controller (lightbar color with live preview, vibration,
   speaker volume), keyboard and mouse input mapping, game folders, and game config import/export.
   Per-game settings work like in the Qt launcher: saving creates a full copy of the settings.
-- **Also ported**: trophies (per game and overview), cheats (remote collection and local
-  selection), compatibility status (editable with `--local`), remove save data, open game
-  folder, the GTA V recommended-settings prompt, and update checks in official builds.
+- **Also**: trophies (per game and overview), cheats (remote collection and local selection),
+  compatibility status (editable with `--local`), remove save data, open game folder, the GTA V
+  recommended-settings prompt, and update checks in official emulator builds.
 - **Emulator log**: the emulator runs without a terminal window; its output appears in the
   log console with colors.
 
@@ -70,19 +100,18 @@ settings in both launchers at the same time.
 
 ## How it talks to the emulator
 
-GPU names, microphones, `.zar` archive contents and trophies come from the emulator itself
-(`kyty_emulator --query info|archives|trophies|controller`, see `src/query/launcherQuery.h`), so
-the GPU list is in the order `--gpu <index>` uses. With an older emulator without `--query`, the
-launcher still runs games but shows only "Auto" for the GPU and no archive art or trophies.
+The launcher runs `kyty_emulator --query info|archives|trophies|controller` (see
+`src/query/launcherQuery.h` in the emulator repository). Each query prints one
+`KYTY_QUERY_RESULT <json>` line; the controller helper keeps running and prints `KYTY_CTRL`
+lines. The GPU list comes from the emulator, so it is in the order `--gpu <index>` uses.
 
 Games start with the same arguments, in the same order, as from the Qt launcher.
 
 ## Development
 
-Needs Node.js 22.12 or later.
+Needs Node.js 22.12 or later (or `nix-shell`).
 
 ```sh
-cd src/launcher-electron
 npm ci
 npm run dev          # Start with hot reload; set KYTY_EMULATOR to a built kyty_emulator
 npm run typecheck
@@ -101,16 +130,23 @@ background on machines without a GPU, `KYTY_E2E_SIZE=1080` for 1920x1080 screens
 
 ```sh
 npm run package                                   # dist/<platform>-unpacked
-node scripts/copy-to-install.mjs <install-dir>    # next to kyty_emulator
+node scripts/copy-to-install.mjs <emulator-dir>   # next to kyty_emulator
 ```
 
 This adds `launcher-electron/` and `kyty-launcher.sh` on Linux, `launcher-electron/` and
-`KytyPS5 Launcher.cmd` on Windows, and `KytyPS5 Launcher.app` on macOS. CI does this in every
-platform job, so release archives contain both launchers.
+`KytyPS5 Launcher.cmd` on Windows, and `KytyPS5 Launcher.app` on macOS. The release archives
+contain exactly these files.
 
 On Linux, start the launcher with `kyty-launcher.sh`. Chromium's sandbox needs user namespaces;
 where the system restricts them (Ubuntu 24.04's AppArmor setting, some Debian kernels) and
 `chrome-sandbox` is not setuid root, the script starts the launcher with `--no-sandbox`.
+
+### Releases
+
+CI builds, tests and packages the launcher on Linux, Windows and macOS for every push and pull
+request. Pushing a `v*` tag (matching `version` in `package.json`) publishes the three archives
+as a GitHub release. The emulator's CI downloads a pinned release, so update the version there
+after publishing one.
 
 ## Code layout
 
@@ -122,6 +158,9 @@ where the system restricts them (Ubuntu 24.04's AppArmor setting, some Debian ke
 | `src/renderer` | The UI (React): screens, controller input and focus (`input/`, `focus/`), the WebGL background (`gfx/`), styles. |
 | `test` | Fixtures, the fake emulator and Playwright tests. |
 
+Much of `src/main` is a port of the emulator's Qt launcher; paths such as
+`src/launcher/src/mainDialog.cpp` in comments refer to the emulator repository.
+
 ## Not verified on real hardware yet
 
 These need a person with the hardware:
@@ -131,3 +170,8 @@ These need a person with the hardware:
 - Controller input in the launcher on Windows over Bluetooth after playing a game.
 - The settings file location and permissions on macOS.
 - Starting from the Linux release archive on Ubuntu 24.04 (the sandbox fallback).
+
+## License
+
+GPL-2.0, like the emulator it was ported from; see [LICENSE](LICENSE). The bundled Inter font
+is under the SIL Open Font License ([LICENSES/Inter-OFL.txt](LICENSES/Inter-OFL.txt)).

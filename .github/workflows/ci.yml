@@ -1,0 +1,159 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    # Pushing a v* tag publishes a release with the three archives.
+    tags: [ 'v*' ]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-24.04
+            archive: KytyPS5-Dashboard-linux-x64.tar.gz
+          - name: Windows
+            os: windows-2022
+            archive: KytyPS5-Dashboard-windows-x64.zip
+          - name: macOS
+            os: macos-15
+            archive: KytyPS5-Dashboard-macos-x86_64.zip
+            # x86_64 like the emulator, which runs under Rosetta on Apple silicon.
+            package_args: --x64
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check the tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+
+      - name: Install xvfb
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes xvfb
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Package
+        run: |
+          npm run package -- ${{ matrix.package_args }}
+          node scripts/copy-to-install.mjs stage
+
+      - name: Sign and check the app (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          app="stage/KytyPS5 Launcher.app"
+          codesign --force --deep --sign - --timestamp=none "$app"
+          for binary in "$app"/Contents/MacOS/*; do
+            lipo "$binary" -verify_arch x86_64
+          done
+          codesign --verify --deep --strict --verbose=2 "$app"
+
+      - name: Check the app (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          test -f stage/launcher-electron/kyty-launcher.exe
+          test -f "stage/KytyPS5 Launcher.cmd"
+
+      - name: Check the app (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          file stage/launcher-electron/kyty-launcher | grep -q "ELF 64-bit LSB .*x86-64"
+          # The packaged app starts, finds the emulator and asks it for its devices.
+          KYTY_EMULATOR="$PWD/test/fake-emulator/kyty_emulator" xvfb-run -a stage/kyty-launcher.sh --self-test | tee self-test.json
+          grep -q '"queryAvailable":true' self-test.json
+
+      - name: End-to-end tests (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          xvfb-run -a -s "-screen 0 1920x1080x24" npx playwright test
+          # The GPU-rendered background, through SwiftShader on the runner.
+          KYTY_E2E_SWIFTSHADER=1 xvfb-run -a -s "-screen 0 1920x1080x24" npx playwright test smoke
+          KYTY_E2E_SIZE=1080 KYTY_E2E_SWIFTSHADER=1 xvfb-run -a -s "-screen 0 1920x1200x24" npx playwright test tour
+
+      - name: Upload screenshots
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: KytyPS5-Dashboard-screenshots
+          path: test-results/screenshots/**
+          if-no-files-found: ignore
+
+      - name: Archive
+        run: |
+          mkdir -p artifacts
+          archive="$PWD/artifacts/${{ matrix.archive }}"
+          cd stage
+          case "$RUNNER_OS" in
+            Linux) tar -czf "$archive" . ;;
+            Windows) 7z a -tzip "$archive" ./* > /dev/null ;;
+            macOS) zip -qry "$archive" . ;;
+          esac
+          ls -l "$archive"
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive }}
+          path: artifacts/${{ matrix.archive }}
+          if-no-files-found: error
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download archives
+        uses: actions/download-artifact@v4
+        with:
+          pattern: KytyPS5-Dashboard-*-*.*
+          path: artifacts
+          merge-multiple: true
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -l artifacts
+          test "$(ls artifacts | wc -l)" -eq 3
+          gh release create "$GITHUB_REF_NAME" artifacts/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "KytyPS5 Dashboard $GITHUB_REF_NAME" \
+            --generate-notes

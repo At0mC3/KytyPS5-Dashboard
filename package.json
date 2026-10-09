@@ -3,7 +3,7 @@
   "productName": "KytyPS5 Launcher",
   "version": "1.0.0",
   "description": "Controller-friendly launcher for the KytyPS5 emulator",
-  "license": "MIT",
+  "license": "GPL-2.0-only",
   "private": true,
   "main": "out/main/index.js",
   "scripts": {
@@ -35,9 +35,10 @@
     "zustand": "5.0.15"
   },
   "author": "KytyPS5 contributors",
-  "homepage": "https://github.com/At0mC3/KytyPS5-GTA-Linux",
+  "homepage": "https://github.com/At0mC3/KytyPS5-Dashboard",
   "repository": {
     "type": "git",
-    "url": "https://github.com/At0mC3/KytyPS5-GTA-Linux.git"
-  }
+    "url": "https://github.com/At0mC3/KytyPS5-Dashboard.git"
+  },
+  "bugs": "https://github.com/At0mC3/KytyPS5-Dashboard/issues"
 }

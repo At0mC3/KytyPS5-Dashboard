@@ -11,6 +11,12 @@ files:
   - resources/**
   - package.json
 asar: true
+# Licences: this project (GPL-2.0) and the bundled Inter font (OFL).
+extraResources:
+  - from: LICENSE
+    to: LICENSES/KytyPS5-Dashboard-GPL-2.0.txt
+  - from: LICENSES
+    to: LICENSES
 electronFuses:
   runAsNode: false
   enableCookieEncryption: true

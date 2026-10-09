@@ -87,13 +87,12 @@ export interface FixtureGame {
 	titleId: string;
 	version: string;
 	hue: number;
-	art?: string;
 }
 
 export const DEFAULT_GAMES: FixtureGame[] = [
-	{ folder: 'GTA V', title: 'Grand Theft Auto V', titleId: 'PPSA04263', version: '01.010.002', hue: 140, art: '../../../ForkImgs/1.png' },
+	{ folder: 'GTA V', title: 'Grand Theft Auto V', titleId: 'PPSA04263', version: '01.010.002', hue: 140 },
 	{ folder: 'Neon Drift', title: 'Neon Drift', titleId: 'PPSA01001', version: '01.000.000', hue: 290 },
-	{ folder: 'Skyward Isles', title: 'Skyward Isles', titleId: 'PPSA01002', version: '01.004.000', hue: 200, art: '../../../ForkImgs/2.png' },
+	{ folder: 'Skyward Isles', title: 'Skyward Isles', titleId: 'PPSA01002', version: '01.004.000', hue: 200 },
 	{ folder: 'Crimson Harbor', title: 'Crimson Harbor', titleId: 'PPSA01003', version: '02.000.000', hue: 5 },
 	{ folder: 'Echoes of Arden', title: 'Echoes of Arden', titleId: 'PPSA01004', version: '01.000.001', hue: 40 },
 	{ folder: 'Pixel Kart', title: 'Pixel Kart Grand Prix', titleId: 'PPSA01005', version: '01.000.000', hue: 95 },
@@ -136,12 +135,7 @@ export function createFixture(options: { games?: FixtureGame[]; ini?: string; ar
 			}),
 		);
 		fs.writeFileSync(path.join(dir, 'sce_sys', 'icon0.png'), iconPng(game.hue));
-		const art = game.art === undefined ? undefined : path.resolve(__dirname, game.art);
-		if (art !== undefined && fs.existsSync(art)) {
-			fs.copyFileSync(art, path.join(dir, 'sce_sys', 'pic0.png'));
-		} else {
-			fs.writeFileSync(path.join(dir, 'sce_sys', 'pic0.png'), artPng(game.hue));
-		}
+		fs.writeFileSync(path.join(dir, 'sce_sys', 'pic0.png'), artPng(game.hue));
 		if (game.titleId === 'PPSA04263') {
 			fs.writeFileSync(path.join(dir, 'sce_sys', 'trophy2', 'trophy00.ucp'), 'fixture');
 		}
