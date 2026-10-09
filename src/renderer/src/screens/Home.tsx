@@ -46,7 +46,6 @@ export function Home() {
 	const push = useStore((state) => state.push);
 	const viewport = useViewport();
 	const rowRef = useRef<HTMLDivElement>(null);
-	const [scrolled, setScrolled] = useState(false);
 
 	const count = games.length + 1; // The last tile opens the game library.
 	const selectedIndex = Math.max(0, games.findIndex((game) => game.id === selectedId));
@@ -178,7 +177,7 @@ export function Home() {
 	};
 
 	return (
-		<div className={`screen home ${scrolled ? 'home-scrolled' : ''}`} data-nav-scope="1">
+		<div className="screen home" data-nav-scope="1">
 			<TopBar active="games" />
 			<div className="home-content">
 				<section
@@ -186,7 +185,6 @@ export function Home() {
 					ref={rowRef}
 					style={{ height: layout.big + 12 }}
 					data-nav-group
-					onFocus={() => setScrolled(false)}
 				>
 					{tiles.map((i) => {
 						const item = games[i];
@@ -308,7 +306,7 @@ export function Home() {
 				</section>
 
 				{game !== undefined && (
-					<section className="cards" data-nav-group onFocus={() => setScrolled(true)}>
+					<section className="cards" data-nav-group>
 						<button className="card" data-nav onClick={() => game.trophies !== undefined && push({ name: 'trophies', gameId: game.id })} {...hoverFocus}>
 							<span className="card-label">
 								<Icon name="trophy" size={18} /> Trophies
