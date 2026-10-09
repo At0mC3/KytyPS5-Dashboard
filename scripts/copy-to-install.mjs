@@ -26,8 +26,12 @@ const copy = (from, to) => {
 
 fs.mkdirSync(install, { recursive: true });
 if (process.platform === 'darwin') {
-	const app = fs.readdirSync(dist).map((name) => path.join(dist, name, 'KytyPS5 Launcher.app')).find((file) => fs.existsSync(file));
-	copy(app ?? path.join(dist, 'mac', 'KytyPS5 Launcher.app'), path.join(install, 'KytyPS5 Launcher.app'));
+	// electron-builder names the bundle after executableName (dist/mac*/kyty-launcher.app); install
+	// it under the product name.
+	const app = (fs.existsSync(dist) ? fs.readdirSync(dist, { withFileTypes: true }) : [])
+		.filter((entry) => entry.isDirectory() && entry.name.startsWith('mac'))
+		.flatMap((entry) => fs.readdirSync(path.join(dist, entry.name)).filter((name) => name.endsWith('.app')).map((name) => path.join(dist, entry.name, name)))[0];
+	copy(app ?? path.join(dist, 'mac', 'kyty-launcher.app'), path.join(install, 'KytyPS5 Launcher.app'));
 } else if (process.platform === 'win32') {
 	copy(path.join(dist, 'win-unpacked'), path.join(install, 'launcher-electron'));
 	fs.writeFileSync(path.join(install, 'KytyPS5 Launcher.cmd'), '@echo off\r\nstart "" "%~dp0launcher-electron\\kyty-launcher.exe" %*\r\n');

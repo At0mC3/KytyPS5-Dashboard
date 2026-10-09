@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "package": "npm run build && electron-builder --dir",
+    "package": "npm run build && electron-builder --dir --publish never",
     "install-to": "node scripts/copy-to-install.mjs"
   },
   "devDependencies": {
