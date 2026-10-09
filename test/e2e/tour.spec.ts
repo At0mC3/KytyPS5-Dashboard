@@ -7,6 +7,9 @@ import { installFakeGamepad, launchApp, press } from './app';
 const shots = path.join(__dirname, '..', '..', 'test-results', 'screenshots');
 
 test('controller tour of every screen', async () => {
+	// 18 screenshots; at 1920x1080 with SwiftShader drawing the WebGL background on the CPU this
+	// takes about a minute, more than the default test timeout.
+	test.setTimeout(180_000);
 	const fixture = createFixture();
 	const size = process.env.KYTY_E2E_SIZE === '1080' ? { width: 1920, height: 1080 } : { width: 1280, height: 720 };
 	const suffix = size.width === 1920 ? '-1080' : '';
