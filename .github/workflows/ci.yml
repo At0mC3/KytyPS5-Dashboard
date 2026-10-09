@@ -153,7 +153,12 @@ jobs:
         run: |
           ls -l artifacts
           test "$(ls artifacts | wc -l)" -eq 3
-          gh release create "$GITHUB_REF_NAME" artifacts/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "KytyPS5 Dashboard $GITHUB_REF_NAME" \
-            --generate-notes
+          # The release may already exist when it was created on GitHub together with the tag.
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" artifacts/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" artifacts/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "KytyPS5 Dashboard $GITHUB_REF_NAME" \
+              --generate-notes
+          fi
