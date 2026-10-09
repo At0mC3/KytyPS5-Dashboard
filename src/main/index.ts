@@ -1,4 +1,4 @@
-// Electron entry point of the KytyPS5 launcher.
+// Electron entry point of the KytyPS5 Dashboard.
 import path from 'node:path';
 import { app, BrowserWindow, Menu, session, shell } from 'electron';
 import { KYTY_EVENTS, type KytyEvents } from '../shared/api';
@@ -39,11 +39,10 @@ if (process.env.KYTY_USER_DATA !== undefined) {
 	app.setPath('userData', process.env.KYTY_USER_DATA);
 }
 
-const launcherDir = app.isPackaged ? path.dirname(app.getPath('exe')) : app.getAppPath();
 const service = new LauncherService({
 	platform,
 	cwd: process.cwd(),
-	launcherDir,
+	configFile: path.join(app.getPath('userData'), 'dashboard.json'),
 	cacheDir: path.join(app.getPath('userData'), 'cache'),
 	compatLocal: hasFlag('local'),
 	emulatorOverride: argValue('emulator') ?? process.env.KYTY_EMULATOR,
@@ -227,7 +226,7 @@ app.whenReady().then(async () => {
 	if (selfTest) {
 		await service.start();
 		process.stdout.write(
-			`${JSON.stringify({ emulator: service.emulator, settingsFile: service.settingsFile, games: service.library().length, gpu: app.getGPUFeatureStatus() })}\n`,
+			`${JSON.stringify({ emulator: service.emulator, emulatorSetup: service.emulatorSetup, settingsFile: service.settingsFile, games: service.library().length, gpu: app.getGPUFeatureStatus() })}\n`,
 		);
 		service.dispose();
 		app.exit(0);

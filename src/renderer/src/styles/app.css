@@ -586,6 +586,78 @@ button:focus,
 	border-color: rgba(229, 83, 83, 0.55);
 }
 
+/* ----- Setup ------------------------------------------------------------------------------ */
+
+.setup-screen {
+	align-items: center;
+	justify-content: center;
+}
+
+.setup-panel {
+	width: min(40rem, calc(100vw - 4rem));
+	padding: 2.6rem 2.8rem 2.2rem;
+	border-radius: 1.6rem;
+	border: 1px solid var(--line);
+	background: var(--panel-strong);
+	box-shadow: 0 1.6rem 4rem rgba(0, 0, 0, 0.45);
+	animation: hero-in 0.45s var(--ease) both;
+}
+
+.setup-icon {
+	width: 4.2rem;
+	height: 4.2rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: 1.4rem;
+	border-radius: 1.1rem;
+	background: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+
+.setup-title {
+	margin: 0;
+	font-size: 2.2rem;
+	font-weight: 750;
+	letter-spacing: -0.02em;
+}
+
+.setup-text {
+	margin: 0.9rem 0 1.6rem;
+	color: var(--text-2);
+	font-size: 1.05rem;
+	line-height: 1.55;
+}
+
+.setup-text code {
+	color: var(--text);
+	font-family: ui-monospace, monospace;
+	font-size: 0.95em;
+}
+
+.setup-error {
+	display: flex;
+	gap: 0.7rem;
+	align-items: flex-start;
+	margin: -0.4rem 0 1.6rem;
+	padding: 0.85rem 1rem;
+	border-radius: var(--radius);
+	border: 1px solid rgba(229, 83, 83, 0.45);
+	background: rgba(229, 83, 83, 0.16);
+	color: #ffd6d6;
+	line-height: 1.45;
+	overflow-wrap: anywhere;
+}
+
+.setup-error svg {
+	flex-shrink: 0;
+	margin-top: 0.1rem;
+}
+
+.setup-actions {
+	display: flex;
+	gap: 0.9rem;
+}
+
 /* ----- Hints ------------------------------------------------------------------------------ */
 
 .hints {

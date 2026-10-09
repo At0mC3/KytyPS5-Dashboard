@@ -37,6 +37,8 @@ export interface KytyMethods {
 	getLibrary(): Promise<Game[]>;
 	rescan(): Promise<Game[]>;
 	refreshEmulator(): Promise<AppState>;
+	// The KytyPS5 folder: the one with kyty_emulator, or with KytyPS5.app on macOS.
+	setEmulatorLocation(location: string): Promise<SaveResult & { state: AppState }>;
 
 	getGameSettings(gameId: string): Promise<GameSettingsView>;
 	saveGameSettings(gameId: string, settings: EmulatorSettings): Promise<SaveResult>;
@@ -88,6 +90,7 @@ export const KYTY_METHODS: readonly (keyof KytyMethods)[] = [
 	'getLibrary',
 	'rescan',
 	'refreshEmulator',
+	'setEmulatorLocation',
 	'getGameSettings',
 	'saveGameSettings',
 	'clearGameSettings',

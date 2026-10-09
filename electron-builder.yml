@@ -1,8 +1,8 @@
-# Packages the launcher as an unpacked app folder; scripts/copy-to-install.mjs puts it next to
-# kyty_emulator in the install tree.
-appId: io.github.kytyps5.launcher
-productName: KytyPS5 Launcher
-executableName: kyty-launcher
+# Builds the installers: an AppImage on Linux, a setup program on Windows and a disk image on
+# macOS. The dashboard is installed on its own; on first start it asks where KytyPS5 is.
+appId: io.github.at0mc3.kytyps5-dashboard
+productName: KytyPS5 Dashboard
+artifactName: KytyPS5-Dashboard-${version}-${os}-${arch}.${ext}
 directories:
   output: dist
   buildResources: resources
@@ -25,16 +25,28 @@ electronFuses:
   enableEmbeddedAsarIntegrityValidation: true
   onlyLoadAppFromAsar: true
 linux:
-  target: dir
+  # The AppImage's start script adds --no-sandbox where Chromium's sandbox cannot work (no
+  # unprivileged user namespaces, such as Ubuntu 24.04's AppArmor setting).
+  target: AppImage
+  # Windows and macOS name the program after productName (KytyPS5 Dashboard.exe / .app).
+  executableName: kytyps5-dashboard
   category: Game
   icon: resources/icon.png
-  executableArgs: []
+  synopsis: Console-style launcher for the KytyPS5 emulator
 win:
-  target: dir
+  target: nsis
   icon: resources/icon.png
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
 mac:
-  target: dir
+  # x86_64 like the emulator, which runs under Rosetta on Apple silicon.
+  target:
+    - target: dmg
+      arch: x64
   icon: resources/icon.png
   category: public.app-category.games
-  # Ad-hoc signature only; the release is not notarized.
-  identity: null
+  # Ad-hoc signature only; the app is not notarized, so the hardened runtime is not needed.
+  identity: '-'
+  hardenedRuntime: false

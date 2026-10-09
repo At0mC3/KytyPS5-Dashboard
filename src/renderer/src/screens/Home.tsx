@@ -165,7 +165,6 @@ export function Home() {
 	for (let i = first; i <= last; i++) tiles.push(i);
 
 	const running = run.running && run.gameId === game?.id;
-	const noEmulator = app !== undefined && !app.emulator.found;
 	const noFolders = app !== undefined && app.gameDirs.length === 0;
 
 	const addFolder = async () => {
@@ -235,15 +234,6 @@ export function Home() {
 				</section>
 
 				<section className="hero">
-					{noEmulator && (
-						<div className="banner banner-error">
-							<Icon name="warning" />
-							<div>
-								<strong>Can't find the emulator</strong>
-								<p>Put kyty_emulator next to the launcher, or start the launcher with --emulator=&lt;path&gt;.</p>
-							</div>
-						</div>
-					)}
 					{games.length === 0 && app?.libraryReady !== true ? (
 						<div className="hero-empty">
 							<h1 className="hero-title">Looking for games…</h1>

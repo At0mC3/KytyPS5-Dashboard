@@ -19,6 +19,7 @@ import type {
 	CheatPreview,
 	DirListing,
 	EmulatorInfo,
+	EmulatorSetup,
 	Game,
 	GameSettingsView,
 	GameStatus,
@@ -38,7 +39,7 @@ import { fetchCheatFile, loadCheatCatalog } from './cheats/repository';
 import { CompatibilityDatabase } from './compat/database';
 import { buildEmulatorArgs, missingRecommendedSettings, withRecommendedSettings } from './emulator/args';
 import { ControllerHelper } from './emulator/controllerHelper';
-import { findEmulator } from './emulator/discovery';
+import { resolveEmulatorLocation, resolveEmulatorOverride } from './emulator/discovery';
 import { queryEmulatorInfo, runQuery } from './emulator/query';
 import { GameRunner } from './emulator/runner';
 import { listDirectory } from './fs/browser';
@@ -57,6 +58,7 @@ import {
 	writeWindow,
 	type KytySettings,
 } from './settings/kytySettings';
+import { readLauncherConfig, writeLauncherConfig } from './settings/launcherConfig';
 import { IniDocument } from './settings/qsettingsIni';
 import { readSettingsText, resolveSettingsPath, updateSettingsFile, writeFileAtomic } from './settings/settingsFile';
 import { checkForUpdates } from './updates/checker';
@@ -64,7 +66,8 @@ import { checkForUpdates } from './updates/checker';
 export interface ServiceOptions {
 	platform: Platform;
 	cwd: string;
-	launcherDir: string;
+	// The dashboard's own settings (dashboard.json): the chosen KytyPS5 folder.
+	configFile: string;
 	cacheDir: string;
 	compatLocal: boolean;
 	emulatorOverride?: string;
@@ -119,10 +122,12 @@ const TROPHY_FILE = /^trophy(\d+)\.ucp$/;
 
 export class LauncherService extends EventEmitter<ServiceEvents> {
 	readonly platform: Platform;
-	settingsFile: string;
-	settings: KytySettings;
+	// Both set by useEmulator(), since which Kyty.ini to use depends on where the emulator is.
+	settingsFile!: string;
+	settings!: KytySettings;
 	settingsError: string | undefined;
 	emulator: EmulatorInfo = { found: false, queryAvailable: false, updateCheckSupported: false, gpus: [], microphones: [] };
+	emulatorSetup: EmulatorSetup = { source: 'none' };
 	fullscreen = false;
 	libraryReady = false;
 	readonly runner = new GameRunner();
@@ -144,11 +149,8 @@ export class LauncherService extends EventEmitter<ServiceEvents> {
 	constructor(private readonly options: ServiceOptions) {
 		super();
 		this.platform = options.platform;
-		const emulatorPath = findEmulator(options.platform, options.launcherDir, options.emulatorOverride);
-		this.settingsFile = resolveSettingsPath(options.platform, options.cwd, emulatorPath === undefined ? undefined : path.dirname(emulatorPath));
-		this.settings = this.readSettingsFile();
-		this.emulator = { ...this.emulator, found: emulatorPath !== undefined, path: emulatorPath, directory: emulatorPath === undefined ? undefined : path.dirname(emulatorPath) };
-		this.controller = new ControllerHelper(emulatorPath);
+		this.controller = new ControllerHelper(undefined);
+		this.useEmulator(this.locateEmulator());
 		this.controller.on('event', (event) => this.emit('sdl', event));
 		this.compat = new CompatibilityDatabase(options.compatLocal, options.cwd);
 		this.runner.on('state', (state) => {
@@ -193,6 +195,65 @@ export class LauncherService extends EventEmitter<ServiceEvents> {
 	dispose(): void {
 		this.watcher?.close();
 		this.controller.stop();
+	}
+
+	// ----- Emulator location ---------------------------------------------------------------------
+
+	// --emulator / KYTY_EMULATOR first, then the KytyPS5 folder chosen in the app.
+	private locateEmulator(): string | undefined {
+		const override = this.options.emulatorOverride;
+		if (override !== undefined && override.length > 0) {
+			const result = resolveEmulatorOverride(override);
+			this.emulatorSetup = 'path' in result ? { source: 'override' } : { source: 'override', problem: result.error };
+			return 'path' in result ? result.path : undefined;
+		}
+		const location = readLauncherConfig(this.options.configFile).emulatorLocation;
+		if (location === undefined) {
+			this.emulatorSetup = { source: 'none' };
+			return undefined;
+		}
+		const result = resolveEmulatorLocation(this.platform, location);
+		this.emulatorSetup = 'path' in result ? { source: 'saved', location } : { source: 'saved', location, problem: result.error };
+		return 'path' in result ? result.path : undefined;
+	}
+
+	private useEmulator(emulatorPath: string | undefined): void {
+		const directory = emulatorPath === undefined ? undefined : path.dirname(emulatorPath);
+		this.settingsFile = resolveSettingsPath(this.platform, this.options.cwd, directory);
+		this.settings = this.readSettingsFile();
+		this.emulator = { found: emulatorPath !== undefined, path: emulatorPath, directory, queryAvailable: false, updateCheckSupported: false, gpus: [], microphones: [] };
+		this.controller.setEmulator(emulatorPath);
+	}
+
+	// Switches to the KytyPS5 folder the user chose and remembers it.
+	async setEmulatorLocation(location: string): Promise<SaveResult & { state: AppState }> {
+		const fail = (error: string): SaveResult & { state: AppState } => ({ ok: false, error, state: this.state() });
+		if (this.runner.current.running) {
+			return fail('Stop the game before changing where KytyPS5 is.');
+		}
+		const dir = path.resolve(location);
+		const result = resolveEmulatorLocation(this.platform, dir);
+		if ('error' in result) {
+			return fail(result.error);
+		}
+		const info = await queryEmulatorInfo(result.path);
+		if (!info.queryAvailable && !/ver = /.test(info.version ?? '')) {
+			return fail(`${result.path} does not look like kyty_emulator.`);
+		}
+		try {
+			writeLauncherConfig(this.options.configFile, { emulatorLocation: dir });
+		} catch (error) {
+			return fail(`Could not save ${this.options.configFile}: ${(error as Error).message}`);
+		}
+		this.emulatorSetup = { source: 'saved', location: dir };
+		this.watcher?.close();
+		this.useEmulator(result.path);
+		this.emulator = info;
+		this.watchSettings();
+		this.emitState();
+		await this.rescan();
+		this.updateController();
+		return { ok: true, state: this.state() };
 	}
 
 	notice(notice: Notice): void {
@@ -281,6 +342,7 @@ export class LauncherService extends EventEmitter<ServiceEvents> {
 			settingsFile: this.settingsFile,
 			settingsError: this.settingsError,
 			emulator: this.emulator,
+			emulatorSetup: this.emulatorSetup,
 			global: this.settings.global,
 			controller: this.settings.controller,
 			gameDirs: this.settings.gameDirs,

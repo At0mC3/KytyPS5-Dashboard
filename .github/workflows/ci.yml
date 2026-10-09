@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
-    # Pushing a v* tag publishes a release with the three archives.
+    # Pushing a v* tag publishes a release with the three installers.
     tags: [ 'v*' ]
   pull_request:
 
@@ -25,15 +25,13 @@ jobs:
         include:
           - name: Linux
             os: ubuntu-24.04
-            archive: KytyPS5-Dashboard-linux-x64.tar.gz
+            installer: AppImage
           - name: Windows
             os: windows-2022
-            archive: KytyPS5-Dashboard-windows-x64.zip
+            installer: exe
           - name: macOS
             os: macos-15
-            archive: KytyPS5-Dashboard-macos-x86_64.zip
-            # x86_64 like the emulator, which runs under Rosetta on Apple silicon.
-            package_args: --x64
+            installer: dmg
     defaults:
       run:
         shell: bash
@@ -67,34 +65,49 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      - name: Package
+      - name: Build the installer
         run: |
-          npm run package -- ${{ matrix.package_args }}
-          node scripts/copy-to-install.mjs stage
+          npm run package
+          ls -l dist
 
-      - name: Sign and check the app (macOS)
+      - name: Check the AppImage (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          appimage="$(ls dist/*.AppImage)"
+          (cd dist && "./$(basename "$appimage")" --appimage-extract > /dev/null)
+          run() { xvfb-run -a dist/squashfs-root/AppRun --self-test | grep '^{"emulator"' | tee "$1"; }
+          # First start: no KytyPS5 folder chosen yet, so the app asks for it.
+          KYTY_USER_DATA="$RUNNER_TEMP/first-start" run first-start.json
+          grep -q '"emulatorSetup":{"source":"none"}' first-start.json
+          # With the folder saved, the app finds the emulator and asks it for its devices.
+          mkdir -p "$RUNNER_TEMP/saved"
+          printf '{ "emulatorLocation": "%s" }\n' "$PWD/test/fake-emulator" > "$RUNNER_TEMP/saved/dashboard.json"
+          KYTY_USER_DATA="$RUNNER_TEMP/saved" run saved.json
+          grep -q '"queryAvailable":true' saved.json
+          rm -rf dist/squashfs-root
+
+      - name: Check the installer (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem dist\*.exe | Select-Object -First 1
+          # NSIS wants /D last and without quotes, so use a folder without spaces.
+          $target = Join-Path $env:RUNNER_TEMP 'KytyPS5Dashboard'
+          Start-Process -FilePath $installer.FullName -ArgumentList '/S', "/D=$target" -Wait
+          if (-not (Test-Path (Join-Path $target 'KytyPS5 Dashboard.exe'))) { Get-ChildItem $target; throw 'The installer did not install KytyPS5 Dashboard.exe' }
+
+      - name: Check the disk image (macOS)
         if: runner.os == 'macOS'
         run: |
-          app="stage/KytyPS5 Launcher.app"
-          codesign --force --deep --sign - --timestamp=none "$app"
+          dmg="$(ls dist/*.dmg)"
+          mount="$(hdiutil attach -nobrowse -readonly "$dmg" | tail -n 1 | cut -f 3)"
+          app="$mount/KytyPS5 Dashboard.app"
+          test -d "$app"
           for binary in "$app"/Contents/MacOS/*; do
             lipo "$binary" -verify_arch x86_64
           done
           codesign --verify --deep --strict --verbose=2 "$app"
-
-      - name: Check the app (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          test -f stage/launcher-electron/kyty-launcher.exe
-          test -f "stage/KytyPS5 Launcher.cmd"
-
-      - name: Check the app (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          file stage/launcher-electron/kyty-launcher | grep -q "ELF 64-bit LSB .*x86-64"
-          # The packaged app starts, finds the emulator and asks it for its devices.
-          KYTY_EMULATOR="$PWD/test/fake-emulator/kyty_emulator" xvfb-run -a stage/kyty-launcher.sh --self-test | tee self-test.json
-          grep -q '"queryAvailable":true' self-test.json
+          hdiutil detach "$mount"
 
       - name: End-to-end tests (Linux)
         if: runner.os == 'Linux'
@@ -112,23 +125,11 @@ jobs:
           path: test-results/screenshots/**
           if-no-files-found: ignore
 
-      - name: Archive
-        run: |
-          mkdir -p artifacts
-          archive="$PWD/artifacts/${{ matrix.archive }}"
-          cd stage
-          case "$RUNNER_OS" in
-            Linux) tar -czf "$archive" . ;;
-            Windows) 7z a -tzip "$archive" ./* > /dev/null ;;
-            macOS) zip -qry "$archive" . ;;
-          esac
-          ls -l "$archive"
-
-      - name: Upload archive
+      - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.archive }}
-          path: artifacts/${{ matrix.archive }}
+          name: KytyPS5-Dashboard-${{ matrix.name }}
+          path: dist/*.${{ matrix.installer }}
           if-no-files-found: error
 
   release:
@@ -140,10 +141,10 @@ jobs:
       contents: write
 
     steps:
-      - name: Download archives
+      - name: Download installers
         uses: actions/download-artifact@v4
         with:
-          pattern: KytyPS5-Dashboard-*-*.*
+          pattern: KytyPS5-Dashboard-{Linux,Windows,macOS}
           path: artifacts
           merge-multiple: true
 

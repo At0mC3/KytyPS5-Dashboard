@@ -13,6 +13,7 @@ import { Home } from './screens/Home';
 import { Library } from './screens/Library';
 import { LogConsole } from './screens/LogConsole';
 import { SettingsScreen } from './screens/Settings';
+import { Setup } from './screens/Setup';
 import { GameTrophies, TrophyOverview } from './screens/Trophies';
 import { useStore, type Screen } from './store';
 
@@ -110,6 +111,8 @@ export function App() {
 	const toasts = useStore((state) => state.toasts);
 	const launching = useStore((state) => state.launching);
 	const top = screens[screens.length - 1]!;
+	// Nothing works without the emulator, so ask where KytyPS5 is first.
+	const needsSetup = app !== undefined && !app.emulator.found;
 
 	useEffect(() => {
 		installFallback();
@@ -151,15 +154,15 @@ export function App() {
 
 	const selected = games.find((game) => game.id === selectedId);
 	const screenGame = top.gameId !== undefined ? games.find((game) => game.id === top.gameId) : undefined;
-	const art = (screenGame ?? (top.name === 'home' ? selected : screenGame ?? selected))?.background;
-	const blur = top.name === 'home' ? (modals.length > 0 ? 0.6 : 0) : 1;
-	const dim = top.name === 'home' ? 0 : 0.35;
+	const art = needsSetup ? undefined : (screenGame ?? (top.name === 'home' ? selected : screenGame ?? selected))?.background;
+	const blur = top.name === 'home' && !needsSetup ? (modals.length > 0 ? 0.6 : 0) : 1;
+	const dim = top.name === 'home' && !needsSetup ? 0 : 0.35;
 
 	return (
 		<div className={`app ${modals.length > 0 ? 'has-modal' : ''}`}>
 			<Background image={art} blur={blur} dim={dim} animate={(app?.prefs.animated_background ?? true) && !matchMedia('(prefers-reduced-motion: reduce)').matches} paused={run.running} />
 			<main className="screens">
-				<ScreenView key={top.key} screen={top} />
+				{needsSetup ? <Setup /> : <ScreenView key={top.key} screen={top} />}
 			</main>
 			<ModalHost />
 			{launching !== undefined && (

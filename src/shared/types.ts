@@ -70,12 +70,23 @@ export interface EmulatorInfo {
 	micError?: string;
 }
 
+// Where the emulator comes from: --emulator / KYTY_EMULATOR, the KytyPS5 folder chosen in the
+// app, or nothing yet (the app then asks for it).
+export interface EmulatorSetup {
+	source: 'override' | 'saved' | 'none';
+	// The chosen KytyPS5 folder.
+	location?: string;
+	// Why the override or the chosen folder does not work.
+	problem?: string;
+}
+
 export interface AppState {
 	platform: Platform;
 	launcherVersion: string;
 	settingsFile: string;
 	settingsError?: string;
 	emulator: EmulatorInfo;
+	emulatorSetup: EmulatorSetup;
 	global: EmulatorSettings;
 	controller: ControllerSettings;
 	gameDirs: string[];

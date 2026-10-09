@@ -19,7 +19,7 @@ import {
 	type EmulatorSettings,
 } from '../../../shared/settings';
 import type { AppState, Game } from '../../../shared/types';
-import { clearGameConfig } from '../actions';
+import { clearGameConfig, locateKytyPS5 } from '../actions';
 import { pickColor } from '../components/ColorPicker';
 import { NumberRow, Row, SectionTitle, SelectRow, SliderRow, TextRow, ToggleRow } from '../components/controls';
 import { browse } from '../components/FolderBrowser';
@@ -790,6 +790,24 @@ function LauncherSection({ app }: { app: AppState }) {
 		<>
 			<SectionTitle>Launcher</SectionTitle>
 			<p className="section-intro">These settings apply right away.</p>
+			<Row
+				label="KytyPS5 location"
+				description={app.emulatorSetup.location ?? app.emulator.directory ?? 'Not chosen yet'}
+				icon="folder"
+				testId="kytyps5-location"
+				onClick={async () => {
+					const result = await locateKytyPS5();
+					if (result.error !== undefined) {
+						await alert('KytyPS5 location', result.error);
+					} else if (result.changed) {
+						// The settings file may be a different one now, so leave this screen's copy of it.
+						useStore.getState().toast('KytyPS5 location changed.');
+						useStore.getState().goHome();
+					}
+				}}
+			>
+				<span className="value-text">Change…</span>
+			</Row>
 			<ToggleRow label="Full screen" description="Show the launcher full screen. Also: F11, or the Create button." value={app.fullscreen} onChange={(value) => void kyty.setFullscreen(value)} testId="pref-fullscreen" />
 			<SelectRow
 				label="GPU acceleration"
@@ -853,7 +871,7 @@ function AboutSection({ app, renderer }: { app: AppState; renderer: string }) {
 	return (
 		<>
 			<SectionTitle>About</SectionTitle>
-			<Row label="Launcher" description={`KytyPS5 Launcher ${app.launcherVersion}`} icon="rocket" />
+			<Row label="Dashboard" description={`KytyPS5 Dashboard ${app.launcherVersion}`} icon="rocket" />
 			<Row label="Emulator" description={app.emulator.path ?? "Can't find emulator"} icon="chip">
 				<span className="value-text">{app.emulator.buildString ?? ''}</span>
 			</Row>

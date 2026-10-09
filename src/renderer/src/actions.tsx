@@ -1,5 +1,6 @@
 // UI flows shared by several screens: launching, the game options menu, search.
 import type { Game } from '../../shared/types';
+import { browse } from './components/FolderBrowser';
 import { editText } from './components/OnScreenKeyboard';
 import { alert, choose, confirm, menu, pick } from './components/Modal';
 import { playSound } from './input/sounds';
@@ -230,4 +231,23 @@ export async function searchGames(): Promise<void> {
 		store.select(id);
 		store.goHome();
 	}
+}
+
+// Asks for the KytyPS5 folder and switches to it. `error` says why the chosen folder was not used.
+export async function locateKytyPS5(): Promise<{ changed: boolean; error?: string }> {
+	const store = useStore.getState();
+	const setup = store.app?.emulatorSetup;
+	const start = setup?.problem === undefined ? setup?.location : undefined;
+	const dir = await browse({ title: 'Locate KytyPS5', mode: 'folder', start, actionLabel: 'Use this folder' });
+	if (dir === undefined) {
+		return { changed: false };
+	}
+	const result = await kyty.setEmulatorLocation(dir);
+	useStore.getState().setApp(result.state);
+	if (!result.ok) {
+		playSound('error');
+		return { changed: false, error: result.error };
+	}
+	playSound('confirm');
+	return { changed: true };
 }

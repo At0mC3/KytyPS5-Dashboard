@@ -8,26 +8,22 @@ emulator's Qt launcher, so either launcher can be used with the same games and c
 
 ## Install
 
-Release builds of [KytyPS5-GTA-Linux](https://github.com/At0mC3/KytyPS5-GTA-Linux/releases)
-already include the dashboard. To add it to another build, download the archive for your system
-from [Releases](https://github.com/At0mC3/KytyPS5-Dashboard/releases) and extract it into the
-folder that holds `kyty_emulator`:
+Download the installer for your system from
+[Releases](https://github.com/At0mC3/KytyPS5-Dashboard/releases) and install it anywhere; it
+does not need to be in the emulator's folder.
 
-| System | Archive | Start with |
+| System | Installer | |
 |---|---|---|
-| Linux | `KytyPS5-Dashboard-linux-x64.tar.gz` | `kyty-launcher.sh` |
-| Windows | `KytyPS5-Dashboard-windows-x64.zip` | `KytyPS5 Launcher.cmd` |
-| macOS | `KytyPS5-Dashboard-macos-x86_64.zip` | `KytyPS5 Launcher.app`, next to `KytyPS5.app` |
+| Linux | `KytyPS5-Dashboard-<version>-linux-x86_64.AppImage` | Make it executable (`chmod +x`) and run it. |
+| Windows | `KytyPS5-Dashboard-<version>-win-x64.exe` | Setup program; installs for the current user. |
+| macOS | `KytyPS5-Dashboard-<version>-mac-x64.dmg` | Drag *KytyPS5 Dashboard* to Applications. |
 
-```sh
-tar -xzf KytyPS5-Dashboard-linux-x64.tar.gz -C /path/to/kyty
-```
+On first start, the dashboard asks where KytyPS5 is: choose the folder that holds
+`kyty_emulator` (`kyty_emulator.exe` on Windows; on macOS, the folder with `KytyPS5.app`). It
+remembers the folder; change it in *Settings → Launcher → KytyPS5 location*.
 
-The launcher looks for `kyty_emulator` next to itself and in the parent folders. To keep it
-somewhere else, start it with `--emulator=<path>` or set `KYTY_EMULATOR`.
-
-The macOS app has an ad-hoc signature and is not notarized, so macOS asks before opening it the
-first time (*System Settings → Privacy & Security → Open Anyway*).
+The installers are not signed, so the system asks before running them the first time: on Windows,
+*More info → Run anyway*; on macOS, *System Settings → Privacy & Security → Open Anyway*.
 
 ### Emulator version
 
@@ -94,7 +90,7 @@ settings in both launchers at the same time.
 | Option | Effect |
 |---|---|
 | `--fullscreen` | Start in full screen. |
-| `--emulator=<path>` | Use this `kyty_emulator` (also `KYTY_EMULATOR`). By default the launcher looks next to itself and in the parent folders. |
+| `--emulator=<path>` | Use this `kyty_emulator` for this run instead of the chosen KytyPS5 folder (also `KYTY_EMULATOR`). |
 | `--local` | Read and edit the compatibility list in `./compatibility_db.json`. |
 | `--self-test` | Print what the launcher found (emulator, devices, settings file, games) as JSON and exit. |
 
@@ -129,24 +125,18 @@ background on machines without a GPU, `KYTY_E2E_SIZE=1080` for 1920x1080 screens
 ## Packaging
 
 ```sh
-npm run package                                   # dist/<platform>-unpacked
-node scripts/copy-to-install.mjs <emulator-dir>   # next to kyty_emulator
+npm run package      # The installer for this system, in dist/
 ```
 
-This adds `launcher-electron/` and `kyty-launcher.sh` on Linux, `launcher-electron/` and
-`KytyPS5 Launcher.cmd` on Windows, and `KytyPS5 Launcher.app` on macOS. The release archives
-contain exactly these files.
-
-On Linux, start the launcher with `kyty-launcher.sh`. Chromium's sandbox needs user namespaces;
-where the system restricts them (Ubuntu 24.04's AppArmor setting, some Debian kernels) and
-`chrome-sandbox` is not setuid root, the script starts the launcher with `--no-sandbox`.
+This builds the AppImage on Linux, the setup program on Windows and the disk image on macOS.
+The AppImage's start script runs the app with `--no-sandbox` where Chromium's sandbox cannot
+work (no unprivileged user namespaces, such as Ubuntu 24.04's AppArmor setting).
 
 ### Releases
 
-CI builds, tests and packages the launcher on Linux, Windows and macOS for every push and pull
-request. Pushing a `v*` tag (matching `version` in `package.json`) publishes the three archives
-as a GitHub release. The emulator's CI downloads a pinned release, so update the version there
-after publishing one.
+CI builds, tests and packages the dashboard on Linux, Windows and macOS for every push and pull
+request. Pushing a `v*` tag (matching `version` in `package.json`) publishes the three
+installers as a GitHub release.
 
 ## Code layout
 
@@ -169,7 +159,8 @@ These need a person with the hardware:
 - DualSense over USB and Bluetooth: navigation and the lightbar preview.
 - Controller input in the launcher on Windows over Bluetooth after playing a game.
 - The settings file location and permissions on macOS.
-- Starting from the Linux release archive on Ubuntu 24.04 (the sandbox fallback).
+- The AppImage on Ubuntu 24.04 (the sandbox fallback), and the Windows and macOS installers on
+  real machines.
 
 ## License
 
