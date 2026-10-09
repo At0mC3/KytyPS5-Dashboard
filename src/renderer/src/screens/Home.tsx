@@ -56,21 +56,24 @@ export function Home() {
 	}, [selectedIndex]);
 	const game: Game | undefined = index < games.length ? games[index] : undefined;
 
+	// Like the console: the tiles sit close together, the selected one grows from its top-left
+	// corner, and its title goes under the smaller tiles to its right.
 	const layout = useMemo(() => {
-		const tile = Math.round(Math.min(156, Math.max(84, viewport.width * 0.078)));
-		const big = Math.round(tile * 1.34);
-		const gap = Math.round(tile * 0.14);
+		// Sized by width, but small enough on short windows that the row stays above the hero text.
+		const tile = Math.round(Math.min(156, Math.max(84, Math.min(viewport.width * 0.078, viewport.height * 0.14))));
+		const big = Math.round(tile * 1.5);
+		const gap = Math.round(tile * 0.1);
 		const anchor = Math.round(viewport.width * 0.055);
-		const titleSpace = Math.round(Math.min(400, Math.max(220, viewport.width * 0.22)));
-		return { tile, big, gap, anchor, titleSpace };
-	}, [viewport.width]);
+		return { tile, big, gap, anchor };
+	}, [viewport.width, viewport.height]);
 
 	const tileX = (i: number) => {
-		const { tile, big, gap, anchor, titleSpace } = layout;
+		const { tile, big, gap, anchor } = layout;
 		if (i < index) return anchor - (index - i) * (tile + gap);
 		if (i === index) return anchor;
-		return anchor + big + gap + titleSpace + (i - index - 1) * (tile + gap);
+		return anchor + big + gap + (i - index - 1) * (tile + gap);
 	};
+	const titleX = layout.anchor + layout.big + layout.gap;
 
 	const setSelection = (next: number) => {
 		const clamped = Math.min(count - 1, Math.max(0, next));
@@ -227,7 +230,7 @@ export function Home() {
 					<div
 						key={game?.id ?? 'library-title'}
 						className="tile-title"
-						style={{ transform: `translate3d(${layout.anchor + layout.big + layout.gap * 1.5}px, 0, 0)`, top: layout.big - 44, width: layout.titleSpace - layout.gap }}
+						style={{ left: titleX, top: layout.tile + layout.gap, width: Math.max(160, viewport.width - titleX - layout.anchor) }}
 					>
 						{game?.title ?? 'Game Library'}
 					</div>
